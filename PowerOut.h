@@ -65,7 +65,7 @@ class PowerOut
 		
 		bool SetOn(uint8_t out)
 		{
-			if(out > _ports_max) return false;
+			if(out == 0 || out > _ports_max) return false;
 			
 			channel_t &channel = _channels[out-1];
 			
@@ -86,7 +86,7 @@ class PowerOut
 		
 		bool SetOn(uint8_t out, uint16_t blink_on, uint16_t blink_off)
 		{
-			if(out > _ports_max) return false;
+			if(out == 0 || out > _ports_max) return false;
 			
 			if( SetOn(out) == true )
 			{
@@ -104,7 +104,7 @@ class PowerOut
 		
 		void SetOff(uint8_t out)
 		{
-			if(out > _ports_max) return;
+			if(out == 0 || out > _ports_max) return;
 			
 			channel_t &channel = _channels[out-1];
 			
@@ -116,7 +116,7 @@ class PowerOut
 		
 		uint16_t GetCurrent(uint8_t out)
 		{
-			if(out > _ports_max) return 0;
+			if(out == 0 || out > _ports_max) return 0;
 
 			channel_t &channel = _channels[out-1];
 			
@@ -147,6 +147,7 @@ class PowerOut
 					}
 				}
 				
+				// TODO: При выполеннии SetOn(out, blink_on, blink_off) выход включается, сразу выключается и начинает моргать.
 				if(channel.mode == MODE_BLINK && current_time - channel.blink_time > channel.blink_delay)
 				{
 					channel.blink_time = current_time;
