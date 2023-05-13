@@ -70,6 +70,7 @@ class PowerOut
 			channel_t &channel = _channels[out-1];
 			
 			_HW_HIGH(channel);
+			channel.mode = MODE_ON;
 			_delayTick(10000);
 			
 			uint16_t current = _HW_GetCurrent(channel);
@@ -108,6 +109,7 @@ class PowerOut
 			channel_t &channel = _channels[out-1];
 			
 			_HW_LOW(channel);
+			channel.mode = MODE_OFF;
 			
 			return;
 		}
