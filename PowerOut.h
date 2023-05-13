@@ -147,7 +147,7 @@ class PowerOut
 					}
 				}
 				
-				// TODO: При выполеннии SetOn(out, blink_on, blink_off) выход включается, сразу выключается и начинает моргать.
+				// TODO: При выполнении SetOn(out, blink_on, blink_off) выход включается, сразу выключается и начинает моргать.
 				if(channel.mode == MODE_BLINK && current_time - channel.blink_time > channel.blink_delay)
 				{
 					channel.blink_time = current_time;
