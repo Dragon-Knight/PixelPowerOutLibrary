@@ -29,6 +29,8 @@ class PowerOut
 		uint16_t blink_off;
 		uint32_t blink_time;
 		uint32_t blink_delay;
+		
+		uint16_t current;
 	} channel_t;
 	
 	public:
@@ -73,8 +75,8 @@ class PowerOut
 			channel.mode = MODE_ON;
 			_delayTick(10000);
 			
-			uint16_t current = _HW_GetCurrent(channel);
-			if( _CheckCurrent(current) == 1 )
+			_HW_GetCurrent(channel);
+			if( _CheckCurrent(channel.current) == 1 )
 			{
 				_HW_LOW(channel);
 				
@@ -110,6 +112,7 @@ class PowerOut
 			
 			_HW_LOW(channel);
 			channel.mode = MODE_OFF;
+			channel.current = 0;		// А может продолжать измерять ток?
 			
 			return;
 		}
@@ -120,7 +123,19 @@ class PowerOut
 
 			channel_t &channel = _channels[out-1];
 			
-			return _HW_GetCurrent(channel);
+			return channel.current;
+		}
+
+		uint16_t GetCurrentTotal()
+		{
+			uint16_t result = 0;
+			
+			for(channel_t &channel : _channels)
+			{
+				result += channel.current;
+			}
+			
+			return result;
 		}
 		
 		void Processing(uint32_t current_time)
@@ -128,7 +143,6 @@ class PowerOut
 			if(current_time - _last_tick_time < 10) return;
 			_last_tick_time = current_time;
 			
-			uint16_t current;
 			for(uint8_t i = 0; i < _ports_max; ++i)
 			{
 				channel_t &channel = _channels[i];
@@ -136,14 +150,14 @@ class PowerOut
 				if(channel.port == NULL) continue;
 				if(channel.mode == MODE_OFF) continue;
 				
-				current = _HW_GetCurrent(channel);
-				if( _CheckCurrent(current) == 1 )
+				_HW_GetCurrent(channel);
+				if( _CheckCurrent(channel.current) == 1 )
 				{
 					_HW_LOW(channel);
 					
 					if(_event_short_circuit != nullptr)
 					{
-						_event_short_circuit( (i + 1), current );
+						_event_short_circuit( (i + 1), channel.current );
 					}
 				}
 				
@@ -186,7 +200,7 @@ class PowerOut
 			return;
 		}
 		
-		uint16_t _HW_GetCurrent(channel_t &channel)
+		void _HW_GetCurrent(channel_t &channel)
 		{
 			_adc_config.Channel = channel.pin_analog;
 			
@@ -197,7 +211,9 @@ class PowerOut
 			uint16_t adc = HAL_ADC_GetValue(&hadc1);
 			//HAL_ADC_Stop(&hadc1);
 			
-			return ((((_vref / 4095) * adc) / _gain) / _shunt);
+			channel.current = ((((_vref / 4095) * adc) / _gain) / _shunt);
+			
+			return;
 		}
 		
 		int8_t _CheckCurrent(uint16_t current)
@@ -221,7 +237,7 @@ class PowerOut
 		channel_t _channels[_ports_max];
 		uint8_t _ports_idx = 0;
 		
-		ADC_ChannelConfTypeDef _adc_config = { ADC_CHANNEL_1, ADC_REGULAR_RANK_1, ADC_SAMPLETIME_1CYCLE_5 };
+		ADC_ChannelConfTypeDef _adc_config = { ADC_CHANNEL_0, ADC_REGULAR_RANK_1, ADC_SAMPLETIME_1CYCLE_5 };
 		
 		event_short_circuit_t _event_short_circuit = nullptr;
 		
