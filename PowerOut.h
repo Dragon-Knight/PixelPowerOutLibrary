@@ -22,6 +22,7 @@ class PowerOut
 		GPIO_TypeDef *port;
 		uint16_t pin_digital;
 		uint16_t pin_analog;
+		uint16_t max_current;
 		
 		mode_t mode;
 		GPIO_PinState state;
@@ -73,10 +74,10 @@ class PowerOut
 			
 			_HW_HIGH(channel);
 			channel.mode = MODE_ON;
-			_delayTick(10000);
+			_delayTick(5000);
 			
 			_HW_GetCurrent(channel);
-			if( _CheckCurrent(channel.current) == 1 )
+			if( _CheckCurrent(channel) == 1 )
 			{
 				_HW_LOW(channel);
 				
@@ -151,7 +152,7 @@ class PowerOut
 				if(channel.mode == MODE_OFF) continue;
 				
 				_HW_GetCurrent(channel);
-				if( _CheckCurrent(channel.current) == 1 )
+				if( _CheckCurrent(channel) == 1 )
 				{
 					_HW_LOW(channel);
 					
@@ -216,10 +217,10 @@ class PowerOut
 			return;
 		}
 		
-		int8_t _CheckCurrent(uint16_t current)
+		int8_t _CheckCurrent(channel_t &channel)
 		{
-			if(current < 50) return -1;
-			else if(current > 5000) return 1;
+			if(channel.current < 50) return -1;
+			else if(channel.current > channel.max_current) return 1;
 			else return 0;
 		}
 		
