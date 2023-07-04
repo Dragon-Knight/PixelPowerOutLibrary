@@ -98,8 +98,11 @@ class PowerOut
 				channel.blink_on = blink_on;
 				channel.blink_off = blink_off;
 				channel.mode = MODE_BLINK;
-				channel.blink_time = HAL_GetTick();		// :'(
-
+				
+				// Исправляем 'промигивание' при включении. Костыли, но как иначе? :'(
+				channel.blink_delay = blink_on;
+				channel.blink_time = HAL_GetTick();
+				
 				return true;
 			}
 			
