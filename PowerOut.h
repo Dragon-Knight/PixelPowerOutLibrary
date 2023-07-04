@@ -98,6 +98,7 @@ class PowerOut
 				channel.blink_on = blink_on;
 				channel.blink_off = blink_off;
 				channel.mode = MODE_BLINK;
+				channel.blink_time = HAL_GetTick();		// :'(
 
 				return true;
 			}
