@@ -45,6 +45,10 @@ class PowerOut
 
 		void Init()
 		{
+			for(auto &channel : _channels)
+			{
+				_HW_PinInit(channel);
+			}
 			HAL_ADCEx_Calibration_Start(&hadc1);
 			
 			return;
@@ -220,6 +224,17 @@ class PowerOut
 			
 			return;
 		}
+
+		void _HW_PinInit(channel_t &channel)
+		{
+			_pin_config_digital.Pin = channel.pin_digital;
+			_pin_config_analog.Pin = channel.pin_analog;
+			
+			HAL_GPIO_Init(channel.port, &_pin_config_digital);
+			HAL_GPIO_Init(channel.port, &_pin_config_analog);
+			
+			return;
+		}
 		
 		int8_t _CheckCurrent(channel_t &channel)
 		{
@@ -242,6 +257,8 @@ class PowerOut
 		channel_t _channels[_ports_max];
 		uint8_t _ports_idx = 0;
 		
+		GPIO_InitTypeDef _pin_config_digital = { GPIO_PIN_0, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW };
+		GPIO_InitTypeDef _pin_config_analog = { GPIO_PIN_0, GPIO_MODE_ANALOG, 0, 0 };
 		ADC_ChannelConfTypeDef _adc_config = { ADC_CHANNEL_0, ADC_REGULAR_RANK_1, ADC_SAMPLETIME_1CYCLE_5 };
 		
 		event_short_circuit_t _event_short_circuit = nullptr;
