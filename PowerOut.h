@@ -140,6 +140,35 @@ class PowerOut
 			return;
 		}
 		
+		void SetToggle(uint8_t out)
+		{
+			if(out == 0 || out > _ports_max) return;
+			
+			channel_t &channel = _channels[out-1];
+			switch(channel.mode)
+			{
+				case MODE_BLINK:
+				case MODE_ON:
+				case MODE_PWM:
+				{
+					SetOff(out);
+					break;
+				}
+				case MODE_DELAY_OFF:
+				case MODE_OFF:
+				{
+					SetOn(out);
+					break;
+				}
+				default:
+				{
+					break;
+				}
+			}
+
+			return;
+		}
+		
 		uint16_t GetCurrent(uint8_t out)
 		{
 			if(out == 0 || out > _ports_max) return 0;
