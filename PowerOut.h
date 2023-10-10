@@ -28,9 +28,9 @@ class PowerOut
 		GPIO_PinState state;
 		uint16_t blink_on;
 		uint16_t blink_off;
-		uint32_t blink_time;
 		uint32_t blink_delay;
 		uint32_t off_delay;
+		uint32_t init_time;
 		
 		uint16_t current;
 	} channel_t;
@@ -106,7 +106,7 @@ class PowerOut
 				
 				// Исправляем 'промигивание' при включении. Костыли, но как иначе? :'(
 				channel.blink_delay = blink_on;
-				channel.blink_time = HAL_GetTick();
+				channel.init_time = HAL_GetTick();
 				
 				return true;
 			}
@@ -122,7 +122,7 @@ class PowerOut
 			
 			_HW_LOW(channel);
 			channel.mode = MODE_OFF;
-			channel.current = 0;		// А может продолжать измерять ток?
+			channel.current = 0;
 			
 			return;
 		}
@@ -135,7 +135,7 @@ class PowerOut
 			channel_t &channel = _channels[out-1];
 			channel.mode = MODE_DELAY_OFF;
 			channel.off_delay = delay;
-			channel.blink_time = HAL_GetTick();
+			channel.init_time = HAL_GetTick();
 
 			return;
 		}
@@ -184,9 +184,9 @@ class PowerOut
 					}
 				}
 				
-				if(channel.mode == MODE_BLINK && current_time - channel.blink_time > channel.blink_delay)
+				if(channel.mode == MODE_BLINK && current_time - channel.init_time > channel.blink_delay)
 				{
-					channel.blink_time = current_time;
+					channel.init_time = current_time;
 					
 					if(channel.state == GPIO_PIN_RESET)
 					{
@@ -200,7 +200,7 @@ class PowerOut
 					}
 				}
 
-				if(channel.mode == MODE_DELAY_OFF && current_time - channel.blink_time > channel.off_delay)
+				if(channel.mode == MODE_DELAY_OFF && current_time - channel.init_time > channel.off_delay)
 				{
 					SetOff( (i + 1) );
 				}
