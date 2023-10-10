@@ -92,6 +92,21 @@ class PowerOut
 			return true;
 		}
 		
+		// Включить на указанное время.
+		bool SetOn(uint8_t out, uint32_t delay)
+		{
+			if(out == 0 || out > _ports_max) return false;
+			
+			if( SetOn(out) == true )
+			{
+				SetOff(out, delay);
+
+				return true;
+			}
+			
+			return false;
+		}
+		
 		bool SetOn(uint8_t out, uint16_t blink_on, uint16_t blink_off)
 		{
 			if(out == 0 || out > _ports_max) return false;
@@ -136,7 +151,7 @@ class PowerOut
 			channel.mode = MODE_DELAY_OFF;
 			channel.off_delay = delay;
 			channel.init_time = HAL_GetTick();
-
+			
 			return;
 		}
 		
@@ -188,6 +203,13 @@ class PowerOut
 			}
 			
 			return result;
+		}
+
+		mode_t GetState(uint8_t out)
+		{
+			if(out == 0 || out > _ports_max) return (mode_t)0;
+			
+			return _channels[out-1].mode;
 		}
 		
 		void Processing(uint32_t current_time)
