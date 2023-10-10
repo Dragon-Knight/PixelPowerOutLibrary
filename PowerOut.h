@@ -15,7 +15,7 @@ class PowerOut
 {
 	using event_short_circuit_t = void (*)(uint8_t num, uint16_t current);
 	
-	enum mode_t : uint8_t { MODE_OFF, MODE_ON, MODE_PWM, MODE_BLINK };
+	enum mode_t : uint8_t { MODE_OFF, MODE_ON, MODE_PWM, MODE_BLINK, MODE_DELAY_OFF };
 
 	typedef struct
 	{
@@ -30,6 +30,7 @@ class PowerOut
 		uint16_t blink_off;
 		uint32_t blink_time;
 		uint32_t blink_delay;
+		uint32_t off_delay;
 		
 		uint16_t current;
 	} channel_t;
@@ -126,6 +127,19 @@ class PowerOut
 			return;
 		}
 		
+		// Выключить через указанное время в мс.
+		void SetOff(uint8_t out, uint32_t delay)
+		{
+			if(out == 0 || out > _ports_max) return;
+			
+			channel_t &channel = _channels[out-1];
+			channel.mode = MODE_DELAY_OFF;
+			channel.off_delay = delay;
+			channel.blink_time = HAL_GetTick();
+
+			return;
+		}
+		
 		uint16_t GetCurrent(uint8_t out)
 		{
 			if(out == 0 || out > _ports_max) return 0;
@@ -170,7 +184,6 @@ class PowerOut
 					}
 				}
 				
-				// TODO: При выполнении SetOn(out, blink_on, blink_off) выход включается, сразу выключается и начинает моргать.
 				if(channel.mode == MODE_BLINK && current_time - channel.blink_time > channel.blink_delay)
 				{
 					channel.blink_time = current_time;
@@ -185,6 +198,11 @@ class PowerOut
 						channel.blink_delay = channel.blink_off;
 						_HW_LOW(channel);
 					}
+				}
+
+				if(channel.mode == MODE_DELAY_OFF && current_time - channel.blink_time > channel.off_delay)
+				{
+					SetOff( (i + 1) );
 				}
 			}
 			
