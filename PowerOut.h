@@ -10,56 +10,48 @@
 
 extern ADC_HandleTypeDef hadc1;
 
-template <uint8_t _ports_max> 
+template <uint8_t _ports_max, uint16_t _tick_time = 10> 
 class PowerOut
 {
 	using event_short_circuit_t = void (*)(uint8_t num, uint16_t current);
 	
 	enum mode_t : uint8_t { MODE_OFF, MODE_ON, MODE_PWM, MODE_BLINK, MODE_DELAY_OFF };
-
-	typedef struct
-	{
-		GPIO_TypeDef *port;
-		uint16_t pin_digital;
-		uint16_t pin_analog;
-		uint16_t max_current;
-		
-		mode_t mode;
-		GPIO_PinState state;
-		uint16_t blink_on;
-		uint16_t blink_off;
-		uint32_t blink_delay;
-		uint32_t off_delay;
-		uint32_t init_time;
-		
-		uint16_t current;
-	} channel_t;
 	
 	public:
 		
+		typedef struct
+		{
+			GPIO_TypeDef *Port;
+			uint16_t Pin;
+		} pin_t;
+		
 		PowerOut(uint32_t vref, uint8_t gain, uint8_t shunt) : _vref(vref), _gain(gain), _shunt(shunt)
 		{
-			memset(&_channels, 0x00, sizeof(_channels));
+			memset(_channels, 0x00, sizeof(_channels));
 			
 			return;
 		}
 
 		void Init()
 		{
-			for(auto &channel : _channels)
-			{
-				_HW_PinInit(channel);
-			}
 			HAL_ADCEx_Calibration_Start(&hadc1);
 			
 			return;
 		}
 		
-		void AddPort(channel_t port)
+		void AddPort(pin_t digital, pin_t analog, uint16_t current_limit)
 		{
 			if(_ports_idx == _ports_max) return;
 			
-			_channels[_ports_idx++] = port;
+			channel_t &channel = _channels[_ports_idx++];
+			channel.pin_digital = digital;
+			channel.pin_analog = analog;
+			channel.current_limit = current_limit;
+			
+			_HW_PinInit(channel.pin_digital, GPIO_MODE_OUTPUT_PP);
+			
+			#warning This line stoped TIM1 and some periphery...
+			//_HW_PinInit(channel.pin_analog, GPIO_MODE_ANALOG);
 			
 			return;
 		}
@@ -214,14 +206,14 @@ class PowerOut
 		
 		void Processing(uint32_t current_time)
 		{
-			if(current_time - _last_tick_time < 10) return;
+			if(current_time - _last_tick_time < _tick_time) return;
 			_last_tick_time = current_time;
 			
 			for(uint8_t i = 0; i < _ports_max; ++i)
 			{
 				channel_t &channel = _channels[i];
 				
-				if(channel.port == NULL) continue;
+				if(channel.current_limit == 0) continue;
 				if(channel.mode == MODE_OFF) continue;
 				
 				_HW_GetCurrent(channel);
@@ -261,10 +253,27 @@ class PowerOut
 		}
 		
 	private:
+
+		typedef struct
+		{
+			pin_t pin_digital;
+			pin_t pin_analog;
+			uint16_t current_limit;
+
+			mode_t mode;
+			GPIO_PinState state;
+			uint16_t blink_on;
+			uint16_t blink_off;
+			uint32_t blink_delay;
+			uint32_t off_delay;
+			uint32_t init_time;
+			
+			uint16_t current;
+		} channel_t;
 		
 		void _HW_HIGH(channel_t &channel)
 		{
-			HAL_GPIO_WritePin(channel.port, channel.pin_digital, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(channel.pin_digital.Port, channel.pin_digital.Pin, GPIO_PIN_SET);
 			channel.state = GPIO_PIN_SET;
 			
 			return;
@@ -272,7 +281,7 @@ class PowerOut
 		
 		void _HW_LOW(channel_t &channel)
 		{
-			HAL_GPIO_WritePin(channel.port, channel.pin_digital, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(channel.pin_digital.Port, channel.pin_digital.Pin, GPIO_PIN_RESET);
 			channel.state = GPIO_PIN_RESET;
 			
 			return;
@@ -280,7 +289,7 @@ class PowerOut
 		
 		void _HW_GetCurrent(channel_t &channel)
 		{
-			_adc_config.Channel = channel.pin_analog;
+			_adc_config.Channel = channel.pin_analog.Pin;
 			
 			HAL_ADC_ConfigChannel(&hadc1, &_adc_config);
 			//HAL_ADCEx_Calibration_Start(&hadc1);
@@ -293,14 +302,14 @@ class PowerOut
 			
 			return;
 		}
-
-		void _HW_PinInit(channel_t &channel)
+		
+		void _HW_PinInit(pin_t pin, uint32_t mode)
 		{
-			_pin_config_digital.Pin = channel.pin_digital;
-			_pin_config_analog.Pin = channel.pin_analog;
+			HAL_GPIO_WritePin(pin.Port, pin.Pin, GPIO_PIN_RESET);
 			
-			HAL_GPIO_Init(channel.port, &_pin_config_digital);
-			HAL_GPIO_Init(channel.port, &_pin_config_analog);
+			_pin_config.Pin = pin.Pin;
+			_pin_config.Mode = mode;
+			HAL_GPIO_Init(pin.Port, &_pin_config);
 			
 			return;
 		}
@@ -308,7 +317,7 @@ class PowerOut
 		int8_t _CheckCurrent(channel_t &channel)
 		{
 			if(channel.current < 50) return -1;
-			else if(channel.current > channel.max_current) return 1;
+			else if(channel.current > channel.current_limit) return 1;
 			else return 0;
 		}
 		
@@ -326,8 +335,7 @@ class PowerOut
 		channel_t _channels[_ports_max];
 		uint8_t _ports_idx = 0;
 		
-		GPIO_InitTypeDef _pin_config_digital = { GPIO_PIN_0, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW };
-		GPIO_InitTypeDef _pin_config_analog = { GPIO_PIN_0, GPIO_MODE_ANALOG, 0, 0 };
+		GPIO_InitTypeDef _pin_config = { GPIO_PIN_0, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW };
 		ADC_ChannelConfTypeDef _adc_config = { ADC_CHANNEL_0, ADC_REGULAR_RANK_1, ADC_SAMPLETIME_1CYCLE_5 };
 		
 		event_short_circuit_t _event_short_circuit = nullptr;
