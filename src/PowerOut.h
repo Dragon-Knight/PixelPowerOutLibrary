@@ -23,6 +23,19 @@ class PowerOut
 		{
 			GPIO_TypeDef *Port;
 			uint16_t Pin;
+			uint32_t Channel;
+		} a_pin_t;
+		
+		typedef struct
+		{
+			GPIO_TypeDef *Port;
+			uint16_t Pin;
+		} d_pin_t;
+		
+		typedef struct
+		{
+			GPIO_TypeDef *Port;
+			uint16_t Pin;
 		} pin_t;
 		
 		PowerOut(uint32_t vref, uint8_t gain, uint8_t shunt) : _vref(vref), _gain(gain), _shunt(shunt)
@@ -39,7 +52,7 @@ class PowerOut
 			return;
 		}
 		
-		void AddPort(pin_t digital, pin_t analog, uint16_t current_limit)
+		void AddPort(d_pin_t digital, a_pin_t analog, uint16_t current_limit)
 		{
 			if(_ports_idx == _ports_max) return;
 			
@@ -48,10 +61,8 @@ class PowerOut
 			channel.pin_analog = analog;
 			channel.current_limit = current_limit;
 			
-			_HW_PinInit(channel.pin_digital, GPIO_MODE_OUTPUT_PP);
-			
-			#warning This line stoped TIM1 and some periphery...
-			//_HW_PinInit(channel.pin_analog, GPIO_MODE_ANALOG);
+			_HW_PinInit(channel.pin_digital);
+			_HW_PinInit(channel.pin_analog);
 			
 			return;
 		}
@@ -256,8 +267,8 @@ class PowerOut
 
 		typedef struct
 		{
-			pin_t pin_digital;
-			pin_t pin_analog;
+			d_pin_t pin_digital;
+			a_pin_t pin_analog;
 			uint16_t current_limit;
 
 			mode_t mode;
@@ -289,7 +300,7 @@ class PowerOut
 		
 		void _HW_GetCurrent(channel_t &channel)
 		{
-			_adc_config.Channel = channel.pin_analog.Pin;
+			_adc_config.Channel = channel.pin_analog.Channel;
 			
 			HAL_ADC_ConfigChannel(&hadc1, &_adc_config);
 			//HAL_ADCEx_Calibration_Start(&hadc1);
@@ -303,12 +314,23 @@ class PowerOut
 			return;
 		}
 		
-		void _HW_PinInit(pin_t pin, uint32_t mode)
+		void _HW_PinInit(d_pin_t pin)
 		{
 			HAL_GPIO_WritePin(pin.Port, pin.Pin, GPIO_PIN_RESET);
 			
 			_pin_config.Pin = pin.Pin;
-			_pin_config.Mode = mode;
+			_pin_config.Mode = GPIO_MODE_OUTPUT_PP;
+			HAL_GPIO_Init(pin.Port, &_pin_config);
+			
+			return;
+		}
+
+		void _HW_PinInit(a_pin_t pin)
+		{
+			HAL_GPIO_WritePin(pin.Port, pin.Pin, GPIO_PIN_RESET);
+			
+			_pin_config.Pin = pin.Pin;
+			_pin_config.Mode = GPIO_MODE_ANALOG;
 			HAL_GPIO_Init(pin.Port, &_pin_config);
 			
 			return;
