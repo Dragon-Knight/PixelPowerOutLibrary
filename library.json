@@ -6,11 +6,5 @@
 	  "type": "git",
 	  "url": "https://github.com/starfactorypixel/Library_PixelPowerOut.git"
 	},
-	"dependencies": [
-	  {
-		"name": "PixelEasyPins",
-		"version": "https://github.com/starfactorypixel/Library_PixelEasyPins.git"
-	  }
-	],
 	"headers": "PowerOut.h"
 }

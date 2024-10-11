@@ -5,10 +5,7 @@
 */
 
 #pragma once
-
 #include <inttypes.h>
-
-extern ADC_HandleTypeDef hadc1;
 
 template <uint8_t _ports_max, uint16_t _tick_time = 10> 
 class PowerOut
@@ -32,22 +29,14 @@ class PowerOut
 			uint16_t Pin;
 		} d_pin_t;
 		
-		typedef struct
+		PowerOut(ADC_HandleTypeDef *hadc, uint32_t vref, uint8_t gain, uint8_t shunt) : _hadc(hadc), _vref(vref), _gain(gain), _shunt(shunt)
 		{
-			GPIO_TypeDef *Port;
-			uint16_t Pin;
-		} pin_t;
-		
-		PowerOut(uint32_t vref, uint8_t gain, uint8_t shunt) : _vref(vref), _gain(gain), _shunt(shunt)
-		{
-			memset(_channels, 0x00, sizeof(_channels));
-			
 			return;
 		}
 
 		void Init()
 		{
-			HAL_ADCEx_Calibration_Start(&hadc1);
+			memset(_channels, 0x00, sizeof(_channels));
 			
 			return;
 		}
@@ -220,6 +209,13 @@ class PowerOut
 			if(current_time - _last_tick_time < _tick_time) return;
 			_last_tick_time = current_time;
 			
+			if(--_calibration_countdown == 0)
+			{
+				_calibration_countdown = _calibration_delay_tick;
+				
+				HAL_ADCEx_Calibration_Start(_hadc);
+			}
+			
 			for(uint8_t i = 0; i < _ports_max; ++i)
 			{
 				channel_t &channel = _channels[i];
@@ -302,12 +298,12 @@ class PowerOut
 		{
 			_adc_config.Channel = channel.pin_analog.Channel;
 			
-			HAL_ADC_ConfigChannel(&hadc1, &_adc_config);
-			//HAL_ADCEx_Calibration_Start(&hadc1);
-			HAL_ADC_Start(&hadc1);
-			HAL_ADC_PollForConversion(&hadc1, 5);
-			uint16_t adc = HAL_ADC_GetValue(&hadc1);
-			//HAL_ADC_Stop(&hadc1);
+			HAL_ADC_ConfigChannel(_hadc, &_adc_config);
+			//HAL_ADCEx_Calibration_Start(_hadc);
+			HAL_ADC_Start(_hadc);
+			HAL_ADC_PollForConversion(_hadc, 5);
+			uint16_t adc = HAL_ADC_GetValue(_hadc);
+			//HAL_ADC_Stop(_hadc);
 			
 			channel.current = ((((_vref / 4095) * adc) / _gain) / _shunt);
 			
@@ -350,6 +346,7 @@ class PowerOut
 			return;
 		}
 		
+		ADC_HandleTypeDef *_hadc;
 		const uint32_t _vref;
 		const uint8_t _gain;
 		const uint8_t _shunt;
@@ -363,4 +360,6 @@ class PowerOut
 		event_short_circuit_t _event_short_circuit = nullptr;
 		
 		uint32_t _last_tick_time = 0;
+		uint32_t _calibration_countdown = 1;
+		const uint32_t _calibration_delay_tick = (60000 / _tick_time);	// 60 sec
 };
