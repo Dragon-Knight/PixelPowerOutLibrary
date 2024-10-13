@@ -31,13 +31,13 @@ class PowerOut
 		
 		PowerOut(ADC_HandleTypeDef *hadc, uint32_t vref, uint8_t gain, uint8_t shunt) : _hadc(hadc), _vref(vref), _gain(gain), _shunt(shunt)
 		{
+			memset(_channels, 0x00, sizeof(_channels));
+			
 			return;
 		}
 
 		void Init()
 		{
-			memset(_channels, 0x00, sizeof(_channels));
-			
 			return;
 		}
 		
@@ -50,8 +50,8 @@ class PowerOut
 			channel.pin_analog = analog;
 			channel.current_limit = current_limit;
 			
-			_HW_PinInit(channel.pin_digital);
-			_HW_PinInit(channel.pin_analog);
+			_HW_PinInitD(channel.pin_digital);
+			_HW_PinInitA(channel.pin_analog);
 			
 			return;
 		}
@@ -73,6 +73,7 @@ class PowerOut
 			channel.mode = MODE_ON;
 			_delayTick(5000);
 			
+			if(channel.current_limit == 0) return true;
 			_HW_GetCurrent(channel);
 			if( _CheckCurrent(channel) == 1 )
 			{
@@ -310,7 +311,7 @@ class PowerOut
 			return;
 		}
 		
-		void _HW_PinInit(d_pin_t pin)
+		void _HW_PinInitD(d_pin_t pin)
 		{
 			HAL_GPIO_WritePin(pin.Port, pin.Pin, GPIO_PIN_RESET);
 			
@@ -321,7 +322,7 @@ class PowerOut
 			return;
 		}
 
-		void _HW_PinInit(a_pin_t pin)
+		void _HW_PinInitA(a_pin_t pin)
 		{
 			HAL_GPIO_WritePin(pin.Port, pin.Pin, GPIO_PIN_RESET);
 			
