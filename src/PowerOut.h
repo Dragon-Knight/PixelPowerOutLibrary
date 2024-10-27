@@ -11,6 +11,7 @@ template <uint8_t _ports_max, uint16_t _tick_time = 10>
 class PowerOut
 {
 	using event_short_circuit_t = void (*)(uint8_t num, uint16_t current);
+	using event_external_control_t = void (*)(uint8_t external_id, GPIO_PinState state);
 	
 	enum mode_t : uint8_t { MODE_OFF, MODE_ON, MODE_PWM, MODE_BLINK, MODE_DELAY_OFF };
 	
@@ -41,18 +42,42 @@ class PowerOut
 			return;
 		}
 		
+		// Добавить порт, где d_pin_t и a_pin_t являются нативными пинами контроллера
 		void AddPort(d_pin_t digital, a_pin_t analog, uint16_t current_limit)
 		{
 			if(_ports_idx == _ports_max) return;
-			
+
 			channel_t &channel = _channels[_ports_idx++];
 			channel.pin_digital = digital;
 			channel.pin_analog = analog;
 			channel.current_limit = current_limit;
-			
+
 			_HW_PinInitD(channel.pin_digital);
 			_HW_PinInitA(channel.pin_analog);
+
+			return;
+		}
+		
+		// Добавить порт, где пин управления управляется через колбек
+		// uint8_t external_id - некий ID который поможет идентифицировать порт в колбеке
+		void AddPort(uint8_t external_id, a_pin_t analog, uint16_t current_limit)
+		{
+			if(_ports_idx == _ports_max) return;
 			
+			channel_t &channel = _channels[_ports_idx++];
+			channel.pin_digital_external_id = external_id;
+			channel.pin_analog = analog;
+			channel.current_limit = current_limit;
+			
+			_HW_PinInitA(channel.pin_analog);
+			
+			return;
+		}
+
+		void RegExternalControlEvent(event_external_control_t event)
+		{
+			_event_external_control = event;
+
 			return;
 		}
 		
@@ -71,7 +96,7 @@ class PowerOut
 			
 			_HW_HIGH(channel);
 			channel.mode = MODE_ON;
-			_delayTick(5000);
+			_delayTick(1000);
 			
 			if(channel.current_limit == 0) return true;
 			_HW_GetCurrent(channel);
@@ -264,6 +289,7 @@ class PowerOut
 
 		typedef struct
 		{
+			uint8_t pin_digital_external_id;
 			d_pin_t pin_digital;
 			a_pin_t pin_analog;
 			uint16_t current_limit;
@@ -281,7 +307,12 @@ class PowerOut
 		
 		void _HW_HIGH(channel_t &channel)
 		{
-			HAL_GPIO_WritePin(channel.pin_digital.Port, channel.pin_digital.Pin, GPIO_PIN_SET);
+			if(channel.pin_digital.Pin == 0){
+				if(_event_external_control)
+					_event_external_control(channel.pin_digital_external_id, GPIO_PIN_SET);
+			} else {
+				HAL_GPIO_WritePin(channel.pin_digital.Port, channel.pin_digital.Pin, GPIO_PIN_SET);
+			}
 			channel.state = GPIO_PIN_SET;
 			
 			return;
@@ -289,7 +320,12 @@ class PowerOut
 		
 		void _HW_LOW(channel_t &channel)
 		{
-			HAL_GPIO_WritePin(channel.pin_digital.Port, channel.pin_digital.Pin, GPIO_PIN_RESET);
+			if(channel.pin_digital.Pin == 0){
+				if(_event_external_control)
+					_event_external_control(channel.pin_digital_external_id, GPIO_PIN_RESET);
+			} else {
+				HAL_GPIO_WritePin(channel.pin_digital.Port, channel.pin_digital.Pin, GPIO_PIN_RESET);
+			}
 			channel.state = GPIO_PIN_RESET;
 			
 			return;
@@ -313,6 +349,8 @@ class PowerOut
 		
 		void _HW_PinInitD(d_pin_t pin)
 		{
+			if(pin.Pin == 0) return;
+			
 			HAL_GPIO_WritePin(pin.Port, pin.Pin, GPIO_PIN_RESET);
 			
 			_pin_config.Pin = pin.Pin;
@@ -321,9 +359,11 @@ class PowerOut
 			
 			return;
 		}
-
+		
 		void _HW_PinInitA(a_pin_t pin)
 		{
+			if(pin.Pin == 0) return;
+			
 			HAL_GPIO_WritePin(pin.Port, pin.Pin, GPIO_PIN_RESET);
 			
 			_pin_config.Pin = pin.Pin;
@@ -342,7 +382,7 @@ class PowerOut
 		
 		void _delayTick(uint16_t nop_tick)
 		{
-			while(--nop_tick) { asm("NOP"); }
+			while(--nop_tick) { asm("nop;"); }
 			
 			return;
 		}
@@ -359,6 +399,7 @@ class PowerOut
 		ADC_ChannelConfTypeDef _adc_config = { ADC_CHANNEL_0, ADC_REGULAR_RANK_1, ADC_SAMPLETIME_1CYCLE_5 };
 		
 		event_short_circuit_t _event_short_circuit = nullptr;
+		event_external_control_t _event_external_control = nullptr;
 		
 		uint32_t _last_tick_time = 0;
 		uint32_t _calibration_countdown = 1;
