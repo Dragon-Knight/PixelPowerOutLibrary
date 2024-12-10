@@ -147,9 +147,9 @@ class PowerOut
 			return false;
 		}
 		
-		void SetOff(uint8_t out)
+		bool SetOff(uint8_t out)
 		{
-			if(out == 0 || out > _ports_max) return;
+			if(out == 0 || out > _ports_max) return false;
 			
 			channel_t &channel = _channels[out-1];
 			
@@ -157,26 +157,27 @@ class PowerOut
 			channel.mode = MODE_OFF;
 			channel.current = 0;
 			
-			return;
+			return true;
 		}
 		
 		// Выключить через указанное время в мс.
-		void SetOff(uint8_t out, uint32_t delay)
+		bool SetOff(uint8_t out, uint32_t delay)
 		{
-			if(out == 0 || out > _ports_max) return;
+			if(out == 0 || out > _ports_max) return false;
 			
 			channel_t &channel = _channels[out-1];
 			channel.mode = MODE_DELAY_OFF;
 			channel.off_delay = delay;
 			channel.init_time = HAL_GetTick();
 			
-			return;
+			return true;
 		}
 		
-		void SetToggle(uint8_t out)
+		bool SetToggle(uint8_t out)
 		{
-			if(out == 0 || out > _ports_max) return;
+			if(out == 0 || out > _ports_max) return false;
 			
+			bool result = false;
 			channel_t &channel = _channels[out-1];
 			switch(channel.mode)
 			{
@@ -184,13 +185,13 @@ class PowerOut
 				case MODE_ON:
 				case MODE_PWM:
 				{
-					SetOff(out);
+					result = SetOff(out);
 					break;
 				}
 				case MODE_DELAY_OFF:
 				case MODE_OFF:
 				{
-					SetOn(out);
+					result = SetOn(out);
 					break;
 				}
 				default:
@@ -199,7 +200,18 @@ class PowerOut
 				}
 			}
 
-			return;
+			return result;
+		}
+		
+		// Выставить указанное состояние
+		bool SetWrite(uint8_t out, uint8_t state)
+		{
+			if(out == 0 || out > _ports_max) return false;
+			
+			if(state == 0)
+				return SetOff(out);
+			else
+				return SetOn(out);
 		}
 		
 		uint16_t GetCurrent(uint8_t out)
