@@ -251,7 +251,7 @@ class PowerOut
 			{
 				_calibration_countdown = _calibration_delay_tick;
 				
-				HAL_ADCEx_Calibration_Start(_hadc);
+				_HW_Calibration();
 			}
 			
 			for(uint8_t i = 0; i < _ports_max; ++i)
@@ -390,6 +390,16 @@ class PowerOut
 			if(channel.current < 50) return -1;
 			else if(channel.current > channel.current_limit) return 1;
 			else return 0;
+		}
+		
+		void _HW_Calibration()
+		{
+#if defined(STM32F1)
+			HAL_ADCEx_Calibration_Start(_hadc);
+#elif defined(STM32H7)
+			HAL_ADCEx_Calibration_Start(_hadc, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED);
+#endif
+			return;
 		}
 		
 		void _delayTick(uint16_t nop_tick)
