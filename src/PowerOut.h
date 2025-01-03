@@ -39,6 +39,8 @@ class PowerOut
 
 		void Init()
 		{
+			HAL_ADC_Start(_hadc);
+			
 			return;
 		}
 		
@@ -348,11 +350,9 @@ class PowerOut
 			_adc_config.Channel = channel.pin_analog.Channel;
 			
 			HAL_ADC_ConfigChannel(_hadc, &_adc_config);
-			//HAL_ADCEx_Calibration_Start(_hadc);
 			HAL_ADC_Start(_hadc);
 			HAL_ADC_PollForConversion(_hadc, 5);
 			uint16_t adc = HAL_ADC_GetValue(_hadc);
-			//HAL_ADC_Stop(_hadc);
 			
 			channel.current = ((((_vref / 4095) * adc) / _gain) / _shunt);
 			
@@ -394,11 +394,14 @@ class PowerOut
 		
 		void _HW_Calibration()
 		{
+			HAL_ADC_Stop(_hadc);
 #if defined(STM32F1)
 			HAL_ADCEx_Calibration_Start(_hadc);
 #elif defined(STM32H7)
 			HAL_ADCEx_Calibration_Start(_hadc, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED);
 #endif
+			HAL_ADC_Start(_hadc);
+			
 			return;
 		}
 		
@@ -418,7 +421,7 @@ class PowerOut
 		uint8_t _ports_idx = 0;
 		
 		GPIO_InitTypeDef _pin_config = { GPIO_PIN_0, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW };
-		ADC_ChannelConfTypeDef _adc_config = { ADC_CHANNEL_0, ADC_REGULAR_RANK_1, ADC_SAMPLETIME_1CYCLE_5 };
+		ADC_ChannelConfTypeDef _adc_config = { ADC_CHANNEL_0, ADC_REGULAR_RANK_1, ADC_SAMPLETIME_8CYCLES_5 };
 		
 		event_short_circuit_t _event_short_circuit = nullptr;
 		event_external_control_t _event_external_control = nullptr;
