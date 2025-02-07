@@ -7,6 +7,10 @@
 #pragma once
 #include <inttypes.h>
 
+#if defined(STM32H7)
+	#define ADC_SAMPLETIME_7CYCLES_5 ADC_SAMPLETIME_8CYCLES_5
+#endif
+
 template <uint8_t _ports_max, uint16_t _tick_time = 10> 
 class PowerOut
 {
@@ -421,7 +425,7 @@ class PowerOut
 		uint8_t _ports_idx = 0;
 		
 		GPIO_InitTypeDef _pin_config = { GPIO_PIN_0, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW };
-		ADC_ChannelConfTypeDef _adc_config = { ADC_CHANNEL_0, ADC_REGULAR_RANK_1, ADC_SAMPLETIME_8CYCLES_5 };
+		ADC_ChannelConfTypeDef _adc_config = { ADC_CHANNEL_0, ADC_REGULAR_RANK_1, ADC_SAMPLETIME_7CYCLES_5 };
 		
 		event_short_circuit_t _event_short_circuit = nullptr;
 		event_external_control_t _event_external_control = nullptr;
